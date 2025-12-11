@@ -1,0 +1,839 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tonearm Geometry Calculator</title>
+  <style>
+    :root {
+      --amber: #f59e0b;
+      --green: #22c55e;
+      --red: #ef4444;
+      --bg: #0d0d0d;
+      --surface: #141414;
+      --card: #181818;
+      --stroke: rgba(255, 255, 255, 0.08);
+      --text: #f5f6f7;
+      --muted: #9aa4b0;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: "Space Grotesk", "Segoe UI", "Helvetica Neue", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      display: grid;
+      place-items: center;
+      padding: 24px;
+    }
+    .shell {
+      width: min(960px, 100%);
+      background: var(--surface);
+      border: 1px solid rgba(245, 158, 11, 0.22);
+      border-radius: 18px;
+      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
+      overflow: hidden;
+    }
+    header {
+      padding: 20px 24px;
+      border-bottom: 2px solid rgba(245, 158, 11, 0.5);
+      background: #1c1c1c;
+    }
+    h1 {
+      margin: 0 0 6px;
+      font-size: 26px;
+      letter-spacing: 0.2px;
+    }
+    p.lead {
+      margin: 0;
+      color: var(--muted);
+      font-size: 15px;
+    }
+    main {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 20px;
+      padding: 24px;
+    }
+    .full {
+      grid-column: 1 / -1;
+    }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--stroke);
+      border-radius: 14px;
+      padding: 18px;
+      box-shadow: none;
+    }
+    label {
+      display: block;
+      font-weight: 700;
+      margin-bottom: 6px;
+      color: var(--text);
+      letter-spacing: 0.2px;
+    }
+    select, input[type="number"], input[type="text"] {
+      width: 100%;
+      padding: 12px 12px;
+      border-radius: 12px;
+      border: 1px solid rgba(245, 158, 11, 0.45);
+      background: #1f1f1f;
+      color: var(--text);
+      font-size: 15px;
+      outline: none;
+      transition: border 0.2s ease, box-shadow 0.2s ease, transform 0.1s ease;
+      appearance: none;
+    }
+    select:focus, input[type="number"]:focus {
+      border-color: rgba(245, 158, 11, 0.8);
+      box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.25);
+      transform: translateY(-1px);
+    }
+    select option {
+      background: #1a1a1a;
+      color: var(--text);
+    }
+    .row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 12px;
+      margin-top: 12px;
+    }
+    .metrics {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 12px;
+      margin-top: 12px;
+    }
+    .metric {
+      background: #1d1d1d;
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      border-radius: 12px;
+      padding: 12px;
+      box-shadow: none;
+    }
+    button {
+      margin-top: 14px;
+      width: 100%;
+      padding: 14px 12px;
+      border: none;
+      border-radius: 12px;
+      background: var(--amber);
+      color: #0d0d0d;
+      font-weight: 800;
+      letter-spacing: 0.2px;
+      font-size: 15px;
+      cursor: pointer;
+      transition: transform 0.1s ease, box-shadow 0.2s ease, filter 0.2s ease;
+    }
+    button:hover {
+      filter: brightness(1.05);
+      box-shadow: 0 8px 18px rgba(245, 158, 11, 0.28);
+    }
+    button:active {
+      transform: translateY(1px);
+      box-shadow: none;
+    }
+    #protractorOutput {
+      margin-top: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 12px;
+      background: #ffffff;
+      padding: 8px;
+      overflow: auto;
+    }
+    .modal {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.85);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+      z-index: 1000;
+    }
+    .modal.show { display: flex; }
+    .modal-inner {
+      background: #0f0f0f;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 12px;
+      padding: 10px;
+      max-width: 95vw;
+      max-height: 95vh;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .modal-inner button {
+      margin: 0;
+      width: auto;
+      align-self: flex-end;
+      padding: 8px 12px;
+      border-radius: 10px;
+      background: var(--amber);
+      color: #0d0d0d;
+      font-weight: 700;
+      cursor: pointer;
+      border: none;
+    }
+    .modal-content {
+      background: #ffffff;
+      border-radius: 8px;
+      overflow: auto;
+      flex: 1;
+      display: grid;
+      place-items: center;
+      min-width: 60vw;
+      min-height: 60vh;
+    }
+    .metric .label {
+      color: var(--muted);
+      font-size: 13px;
+      margin-bottom: 4px;
+      letter-spacing: 0.15px;
+    }
+    .metric .value {
+      font-size: 20px;
+      font-weight: 800;
+      color: #fefefc;
+    }
+    .metric .unit {
+      color: var(--muted);
+      font-size: 13px;
+      margin-left: 4px;
+    }
+    .hidden {
+      display: none;
+    }
+    .summary-box {
+      position: absolute;
+      right: 12px;
+      bottom: 12px;
+      background: rgba(255, 255, 255, 0.9);
+      color: #111;
+      border: 1px solid rgba(0, 0, 0, 0.15);
+      border-radius: 8px;
+      padding: 10px 12px;
+      font-size: 12px;
+      min-width: 180px;
+      box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
+      pointer-events: none;
+    }
+    .muted {
+      color: var(--muted);
+      font-size: 14px;
+      margin-top: 6px;
+    }
+    .error {
+      color: var(--red);
+      font-weight: 700;
+      margin-top: 8px;
+    }
+    @media (max-width: 700px) {
+      header, main {
+        padding: 18px;
+      }
+      h1 {
+        font-size: 22px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <header>
+      <h1>Tonearm Geometry Calculator</h1>
+      <p class="lead">Enter your pivot-to-spindle distance and choose an alignment scheme to see offset angle and overhang.</p>
+    </header>
+    <main>
+      <section class="card">
+        <div class="row" style="grid-template-columns: 1fr;">
+          <div>
+            <label for="armName">Arm name</label>
+            <input id="armName" type="text" placeholder="e.g. Rega RB330" />
+          </div>
+        </div>
+
+        <label for="scheme">Alignment scheme</label>
+        <select id="scheme"></select>
+
+        <div class="row">
+          <div>
+            <label for="pivot">Pivot-to-spindle (mm)</label>
+            <input id="pivot" type="number" min="1" step="0.1" placeholder="e.g. 212" />
+          </div>
+          <div>
+            <label for="innerNull">Inner null (mm)</label>
+            <input id="innerNull" type="number" min="1" step="0.1" />
+          </div>
+          <div>
+            <label for="outerNull">Outer null (mm)</label>
+            <input id="outerNull" type="number" min="1" step="0.1" />
+          </div>
+        </div>
+
+        <div class="muted" style="margin-top: 14px;">
+          Null points default to the selected scheme—you can tweak them. Formulas: linear offset = (r1 + r2) / 2; effective length = sqrt(S² + r1·r2); offset angle = asin(linear offset / effective length).
+        </div>
+        <div class="error" id="error"></div>
+      </section>
+
+      <section class="card">
+        <div class="metrics">
+          <div class="metric">
+            <div class="label">Offset angle</div>
+            <div class="value"><span id="offsetAngle">--</span><span class="unit">deg</span></div>
+          </div>
+          <div class="metric">
+            <div class="label">Overhang</div>
+            <div class="value"><span id="overhang">--</span><span class="unit">mm</span></div>
+          </div>
+          <div class="metric">
+            <div class="label">Effective length</div>
+            <div class="value"><span id="effLength">--</span><span class="unit">mm</span></div>
+          </div>
+          <div class="metric">
+            <div class="label">Linear offset</div>
+            <div class="value"><span id="linearOffset">--</span><span class="unit">mm</span></div>
+          </div>
+        </div>
+        <button id="protractorBtn" style="margin-top:12px;">Create protractor</button>
+      </section>
+
+      <section class="card full hidden" id="protractorCard">
+        <div class="muted">Generates a to-scale SVG guide (mm units). Right-click to save or print from your browser.</div>
+        <div id="protractorOutput"></div>
+        <button id="downloadBtn" style="margin-top:10px;">Download SVG</button>
+      </section>
+    </main>
+    <div id="protractorModal" class="modal" aria-hidden="true">
+      <div class="modal-inner">
+        <button id="closeModal">Close</button>
+        <div class="modal-content" id="modalContent"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const schemes = {
+      "Löfgren A / Baerwald": [66.0, 120.9],
+      "Löfgren B": [70.3, 116.6],
+      "Stevenson": [60.0, 117.0],
+      "Rega (factory)": [60.0, 120.0],
+      "Technics (JIS-based)": [60.0, 116.0],
+    };
+
+    let lastSvgString = "";
+    let defaultNulls = { inner: null, outer: null };
+    let lastSchemeName = "";
+
+    const els = {
+      scheme: document.getElementById("scheme"),
+      pivot: document.getElementById("pivot"),
+      innerNull: document.getElementById("innerNull"),
+      outerNull: document.getElementById("outerNull"),
+      armName: document.getElementById("armName"),
+      offsetAngle: document.getElementById("offsetAngle"),
+      overhang: document.getElementById("overhang"),
+      effLength: document.getElementById("effLength"),
+      linearOffset: document.getElementById("linearOffset"),
+      error: document.getElementById("error"),
+      protractorBtn: document.getElementById("protractorBtn"),
+      protractorOutput: document.getElementById("protractorOutput"),
+      protractorCard: document.getElementById("protractorCard"),
+      modal: document.getElementById("protractorModal"),
+      modalContent: document.getElementById("modalContent"),
+      closeModal: document.getElementById("closeModal"),
+      downloadBtn: document.getElementById("downloadBtn"),
+    };
+
+    function init() {
+      Object.keys(schemes).forEach((name, idx) => {
+        const opt = document.createElement("option");
+        opt.value = name;
+        opt.textContent = name;
+        if (idx === 0) opt.selected = true;
+        els.scheme.appendChild(opt);
+      });
+
+      els.scheme.addEventListener("change", applySchemeDefaults);
+      els.pivot.addEventListener("input", render);
+      els.innerNull.addEventListener("input", render);
+      els.outerNull.addEventListener("input", render);
+      els.armName.addEventListener("input", render);
+      els.protractorBtn.addEventListener("click", drawProtractor);
+      els.closeModal.addEventListener("click", hideModal);
+      els.modal.addEventListener("click", (e) => {
+        if (e.target === els.modal) hideModal();
+      });
+      els.downloadBtn.addEventListener("click", downloadSvg);
+      els.protractorCard.classList.add("hidden");
+      els.pivot.value = 212;
+      applySchemeDefaults();
+    }
+
+    function applySchemeDefaults() {
+      const [inner, outer] = schemes[els.scheme.value];
+      els.innerNull.value = inner;
+      els.outerNull.value = outer;
+      defaultNulls = { inner, outer };
+      lastSchemeName = els.scheme.value;
+      render();
+    }
+
+    function format(n, digits = 3) {
+      if (!Number.isFinite(n)) return "--";
+      return Number.parseFloat(n).toFixed(digits);
+    }
+
+    function compute(pivotToSpindle, innerNull, outerNull) {
+      if (!(pivotToSpindle > 0)) throw new Error("Pivot-to-spindle distance must be positive.");
+      if (!(innerNull > 0 && outerNull > 0)) throw new Error("Null points must be positive.");
+      if (innerNull >= outerNull) throw new Error("Inner null must be smaller than outer null.");
+
+      const rProduct = innerNull * outerNull;
+      const effectiveLength = Math.sqrt(pivotToSpindle * pivotToSpindle + rProduct);
+      const linearOffset = 0.5 * (innerNull + outerNull);
+      if (linearOffset > effectiveLength) {
+        throw new Error("Geometry impossible: linear offset exceeds effective length.");
+      }
+      const offsetAngleDeg = (Math.asin(linearOffset / effectiveLength) * 180) / Math.PI;
+      const overhang = effectiveLength - pivotToSpindle;
+
+      return { effectiveLength, linearOffset, offsetAngleDeg, overhang };
+    }
+
+    function render() {
+      const pivotValue = parseFloat(els.pivot.value);
+      const inner = parseFloat(els.innerNull.value);
+      const outer = parseFloat(els.outerNull.value);
+      const armNameText = String(els.armName.value || "").trim() || "Tonearm Protractor";
+
+      if (!Number.isFinite(pivotValue)) {
+        setOutputs(null);
+        els.error.textContent = "Enter a numeric pivot-to-spindle distance.";
+        return;
+      }
+      if (!Number.isFinite(inner) || !Number.isFinite(outer)) {
+        setOutputs(null);
+        els.error.textContent = "Enter numeric null points.";
+        return;
+      }
+
+      try {
+        const result = compute(pivotValue, inner, outer);
+        setOutputs(result);
+        els.error.textContent = "";
+      } catch (err) {
+        setOutputs(null);
+        els.error.textContent = err.message;
+      }
+    }
+
+    function setOutputs(values) {
+      if (!values) {
+        els.offsetAngle.textContent = "--";
+        els.overhang.textContent = "--";
+        els.effLength.textContent = "--";
+        els.linearOffset.textContent = "--";
+        return;
+      }
+      els.offsetAngle.textContent = format(values.offsetAngleDeg, 3);
+      els.overhang.textContent = format(values.overhang, 3);
+      els.effLength.textContent = format(values.effectiveLength, 2);
+      els.linearOffset.textContent = format(values.linearOffset, 3);
+    }
+
+    function drawProtractor() {
+      const pivotValue = parseFloat(els.pivot.value);
+      const inner = parseFloat(els.innerNull.value);
+      const outer = parseFloat(els.outerNull.value);
+      const armNameText = String(els.armName.value || "").trim() || "Tonearm Protractor";
+      if (!Number.isFinite(pivotValue) || !Number.isFinite(inner) || !Number.isFinite(outer)) {
+        els.error.textContent = "Provide numeric values before creating a protractor.";
+        return;
+      }
+      let geom;
+      try {
+        geom = compute(pivotValue, inner, outer);
+      } catch (err) {
+        els.error.textContent = err.message;
+        return;
+      }
+      els.error.textContent = "";
+      const spindle = { x: 0, y: 0 };
+      const pivot = { x: pivotValue, y: 0 };
+      const spindleRadius = 6.25 / 2; // 6.25 mm circle diameter
+      const platterRadius = 150;
+
+      const nullPoint = (nullRadius) => {
+        const d = pivotValue;
+        const r0 = geom.effectiveLength;
+        const r1 = nullRadius;
+        const a = (r0 * r0 - r1 * r1 + d * d) / (2 * d);
+        const hSq = r0 * r0 - a * a;
+        const h = Math.sqrt(Math.max(hSq, 0));
+        // Choose the lower-left intersection (downward in SVG coordinates).
+        return { x: pivot.x - a, y: h };
+      };
+
+      const n1 = nullPoint(inner);
+      const n2 = nullPoint(outer);
+
+      const degToRad = (d) => (d * Math.PI) / 180;
+
+      // Bounding box from drawn geometry
+      let minX = Infinity;
+      let maxX = -Infinity;
+      let minY = Infinity;
+      let maxY = -Infinity;
+
+      const includePoint = (x, y) => {
+        minX = Math.min(minX, x);
+        maxX = Math.max(maxX, x);
+        minY = Math.min(minY, y);
+        maxY = Math.max(maxY, y);
+      };
+
+      const includeArcExtents = (center, radius, startDeg, endDeg) => {
+        const norm = (a) => {
+          const m = a % 360;
+          return m < 0 ? m + 360 : m;
+        };
+        let s = norm(startDeg);
+        let e = norm(endDeg);
+        const inRange = (ang) => {
+          const a = norm(ang);
+          if (s <= e) return a >= s && a <= e;
+          return a >= s || a <= e;
+        };
+        const candidates = [startDeg, endDeg, 0, 90, 180, 270].filter(inRange);
+        candidates.forEach((deg) => {
+          const r = degToRad(deg);
+          includePoint(center.x + radius * Math.cos(r), center.y + radius * Math.sin(r));
+        });
+      };
+
+      // Spindle partial ring and platter arc
+      includeArcExtents(spindle, spindleRadius, 0, 360);
+      includeArcExtents(spindle, platterRadius, -15, 100);
+      includeArcExtents(spindle, inner, -15, 100);
+      includeArcExtents(spindle, outer, -15, 100);
+
+      // Pivot full circles
+      includePoint(pivot.x - 30, pivot.y);
+      includePoint(pivot.x + 30, pivot.y);
+      includePoint(pivot.x, pivot.y - 30);
+      includePoint(pivot.x, pivot.y + 30);
+
+      // Tonearm arc 135–185
+      includeArcExtents(pivot, geom.effectiveLength, 135, 185);
+
+      // Null points and tangent guides
+      [n1, n2].forEach((pt) => {
+        includePoint(pt.x, pt.y);
+        const length = 20;
+        const half = length / 2;
+        const spacing = 2;
+        const radial = Math.atan2(pt.y - spindle.y, pt.x - spindle.x);
+        const tangent = radial + Math.PI / 2;
+        const tVec = { x: Math.cos(tangent), y: Math.sin(tangent) };
+        const nVec = { x: Math.cos(radial), y: Math.sin(radial) };
+        for (let i = -2; i <= 2; i++) {
+          const offset = spacing * i;
+          const start = {
+            x: pt.x + nVec.x * offset - tVec.x * half,
+            y: pt.y + nVec.y * offset - tVec.y * half,
+          };
+          const end = {
+            x: pt.x + nVec.x * offset + tVec.x * half,
+            y: pt.y + nVec.y * offset + tVec.y * half,
+          };
+          includePoint(start.x, start.y);
+          includePoint(end.x, end.y);
+        }
+      });
+      const paddingMm = 10; // fixed 10mm padding around the drawing
+
+      const contentWidth = maxX - minX;
+      const contentHeight = maxY - minY;
+
+      const widthMm = contentWidth + paddingMm * 2;
+      const heightMm = contentHeight + paddingMm * 2;
+      const vbMinX = minX - paddingMm;
+      const vbMinY = minY - paddingMm;
+
+      const svgNS = "http://www.w3.org/2000/svg";
+      const svg = document.createElementNS(svgNS, "svg");
+      svg.setAttribute("width", `${widthMm}mm`);
+      svg.setAttribute("height", `${heightMm}mm`);
+      svg.setAttribute("viewBox", `${vbMinX} ${vbMinY} ${widthMm} ${heightMm}`);
+      svg.setAttribute("xmlns", svgNS);
+      svg.setAttribute("version", "1.1");
+      svg.setAttribute("style", "background:#ffffff");
+      const useSchemeTag =
+        defaultNulls.inner !== null &&
+        Math.abs(inner - defaultNulls.inner) < 1e-6 &&
+        Math.abs(outer - defaultNulls.outer) < 1e-6;
+      const titleText = useSchemeTag && lastSchemeName ? `${armNameText} (${lastSchemeName})` : armNameText;
+      svg.setAttribute("aria-label", titleText);
+
+      const add = (node) => svg.appendChild(node);
+      const line = (x1, y1, x2, y2, stroke = "#000", width = 0.3) => {
+        const el = document.createElementNS(svgNS, "line");
+        el.setAttribute("x1", x1);
+        el.setAttribute("y1", y1);
+        el.setAttribute("x2", x2);
+        el.setAttribute("y2", y2);
+        el.setAttribute("stroke", stroke);
+        el.setAttribute("stroke-width", width);
+        el.setAttribute("vector-effect", "non-scaling-stroke");
+        return el;
+      };
+      const circle = (cx, cy, r, stroke = "#000", width = 0.3) => {
+        const el = document.createElementNS(svgNS, "circle");
+        el.setAttribute("cx", cx);
+        el.setAttribute("cy", cy);
+        el.setAttribute("r", r);
+        el.setAttribute("fill", "none");
+        el.setAttribute("stroke", stroke);
+        el.setAttribute("stroke-width", width);
+        el.setAttribute("vector-effect", "non-scaling-stroke");
+        return el;
+      };
+      const arcPath = (center, radius, start, end, stroke = "#000", width = 0.3) => {
+        const p1 = {
+          x: center.x + radius * Math.cos(start),
+          y: center.y + radius * Math.sin(start),
+        };
+        const p2 = {
+          x: center.x + radius * Math.cos(end),
+          y: center.y + radius * Math.sin(end),
+        };
+        const largeArc = Math.abs(end - start) > Math.PI ? 1 : 0;
+        const sweep = end > start ? 1 : 0;
+        const d = `M ${p1.x} ${p1.y} A ${radius} ${radius} 0 ${largeArc} ${sweep} ${p2.x} ${p2.y}`;
+        const el = document.createElementNS(svgNS, "path");
+        el.setAttribute("d", d);
+        el.setAttribute("fill", "none");
+        el.setAttribute("stroke", stroke);
+        el.setAttribute("stroke-width", width);
+        el.setAttribute("vector-effect", "non-scaling-stroke");
+        return el;
+      };
+      const rectNode = (x, y, w, h, rx = 0, stroke = "#111", width = 0.3, fill = "none") => {
+        const el = document.createElementNS(svgNS, "rect");
+        el.setAttribute("x", x);
+        el.setAttribute("y", y);
+        el.setAttribute("width", w);
+        el.setAttribute("height", h);
+        el.setAttribute("rx", rx);
+        el.setAttribute("fill", fill);
+        el.setAttribute("stroke", stroke);
+        el.setAttribute("stroke-width", width);
+        el.setAttribute("vector-effect", "non-scaling-stroke");
+        return el;
+      };
+      const cross = (center, size, stroke = "#111", width = 0.3) => {
+        const g = document.createElementNS(svgNS, "g");
+        g.appendChild(line(center.x - size, center.y, center.x + size, center.y, stroke, width));
+        g.appendChild(line(center.x, center.y - size, center.x, center.y + size, stroke, width));
+        return g;
+      };
+      const arcSegment = (center, radius, startDeg, endDeg, stroke = "#111", width = 0.3) =>
+        arcPath(center, radius, degToRad(startDeg), degToRad(endDeg), stroke, width);
+
+      // Spindle
+      add(arcSegment(spindle, spindleRadius, 0, 360, "#000", 0.3));
+      add(cross(spindle, 4, "#000", 0.3));
+
+      // Platter arc -15 to 100 deg
+      add(arcSegment(spindle, platterRadius, -15, 100, "#000", 0.3));
+      // Null point circles around spindle
+      add(arcSegment(spindle, inner, -15, 100, "#000", 0.1));
+      add(arcSegment(spindle, outer, -15, 100, "#000", 0.1));
+
+      // Pivot rings and cross
+      for (let r = 3; r <= 30; r += 3) {
+        add(circle(pivot.x, pivot.y, r, "#000", 0.3));
+      }
+      add(cross(pivot, 4, "#000", 0.3));
+
+      // Tonearm arc
+      const startAngle = degToRad(135);
+      const endAngle = degToRad(185);
+      add(arcPath(pivot, geom.effectiveLength, startAngle, endAngle, "#000", 0.3));
+
+      // Null markers + parallel tangent guides
+      const drawTangentGuides = (pt) => {
+        const length = 20;
+        const half = length / 2;
+        const spacing = 2;
+        const radial = Math.atan2(pt.y - spindle.y, pt.x - spindle.x);
+        const tangent = radial + Math.PI / 2;
+        const tVec = { x: Math.cos(tangent), y: Math.sin(tangent) };
+        const nVec = { x: Math.cos(radial), y: Math.sin(radial) };
+        for (let i = -2; i <= 2; i++) {
+          const offset = spacing * i;
+          const start = {
+            x: pt.x + nVec.x * offset - tVec.x * half,
+            y: pt.y + nVec.y * offset - tVec.y * half,
+          };
+          const end = {
+            x: pt.x + nVec.x * offset + tVec.x * half,
+            y: pt.y + nVec.y * offset + tVec.y * half,
+          };
+          add(line(start.x, start.y, end.x, end.y, "#000", 0.3));
+        }
+        add(circle(pt.x, pt.y, 1.2, "#000", 0.3));
+      };
+
+      [n1, n2].forEach((pt) => {
+        drawTangentGuides(pt);
+      });
+
+      // Outer frame inset 5mm from padding edge
+      const frameInset = 5;
+      const frameX = vbMinX + frameInset;
+      const frameY = vbMinY + frameInset;
+      const frameW = widthMm - frameInset * 2;
+      const frameH = heightMm - frameInset * 2;
+      add(rectNode(frameX, frameY, frameW, frameH, 0, "#000", 0.3, "none"));
+
+      // Rulers ticks along frame (every 1mm short, 5mm medium, 10mm tall)
+      const drawTicks = () => {
+        const sides = [
+          { x1: frameX, y1: frameY, x2: frameX + frameW, y2: frameY, horizontal: true },
+          { x1: frameX, y1: frameY + frameH, x2: frameX + frameW, y2: frameY + frameH, horizontal: true },
+          { x1: frameX, y1: frameY, x2: frameX, y2: frameY + frameH, horizontal: false },
+          { x1: frameX + frameW, y1: frameY, x2: frameX + frameW, y2: frameY + frameH, horizontal: false },
+        ];
+        sides.forEach((side) => {
+          const length = side.horizontal ? frameW : frameH;
+          const dir = side.horizontal ? 1 : 1;
+          const along = side.horizontal ? "x" : "y";
+          const fixed = side.horizontal ? "y" : "x";
+          const start = side.horizontal ? side.x1 : side.y1;
+          const fixedVal = side.horizontal ? side.y1 : side.x1;
+          for (let mm = 0; mm <= length; mm += 1) {
+            const pos = start + dir * mm;
+            const height =
+              mm % 10 === 0 ? 3 :
+              mm % 5 === 0 ? 2 :
+              1;
+            const sign = (side === sides[0] || side === sides[2]) ? -1 : 1;
+            if (side.horizontal) {
+              add(line(pos, fixedVal, pos, fixedVal + sign * height, "#000", 0.3));
+            } else {
+              add(line(fixedVal, pos, fixedVal + sign * height, pos, "#000", 0.3));
+            }
+          }
+        });
+      };
+      drawTicks();
+
+      // Center line through spindle and pivot extending to frame edges
+      add(line(vbMinX, 0, vbMinX + widthMm, 0, "#000", 0.3));
+
+      // Summary box embedded in SVG (bottom-right, inside padding)
+      const summaryWidth = 60;
+      const summaryHeight = 40;
+      const summaryX = vbMinX + widthMm - paddingMm - summaryWidth;
+      const summaryY = vbMinY + heightMm - paddingMm - summaryHeight;
+      const summaryGroup = document.createElementNS(svgNS, "g");
+      summaryGroup.appendChild(
+        rectNode(summaryX, summaryY, summaryWidth, summaryHeight, 3, "#000", 0.3, "#f5f5f5")
+      );
+
+      // Title
+      const title = document.createElementNS(svgNS, "text");
+      title.setAttribute("x", vbMinX + paddingMm);
+      title.setAttribute("y", vbMinY + paddingMm + 10);
+      title.setAttribute("fill", "#000");
+      title.setAttribute("font-size", "6");
+      title.setAttribute("font-family", "Arial, sans-serif");
+      title.setAttribute("font-weight", "700");
+      title.textContent = titleText;
+      add(title);
+
+      const textLines = [
+        `Pivot–Spindle: ${pivotValue.toFixed(2)} mm`,
+        `Nulls: ${inner.toFixed(1)} / ${outer.toFixed(1)} mm`,
+        `Eff. Length: ${geom.effectiveLength.toFixed(2)} mm`,
+        `Overhang: ${geom.overhang.toFixed(2)} mm`,
+        `Offset angle: ${geom.offsetAngleDeg.toFixed(3)}°`,
+      ];
+      textLines.forEach((txt, idx) => {
+        const t = document.createElementNS(svgNS, "text");
+        t.setAttribute("x", summaryX + 4);
+        t.setAttribute("y", summaryY + 8 + idx * 7);
+        t.setAttribute("fill", "#000");
+        t.setAttribute("font-size", "4");
+        t.setAttribute("font-family", "Arial, sans-serif");
+        t.textContent = txt;
+        summaryGroup.appendChild(t);
+      });
+      add(summaryGroup);
+
+      els.protractorOutput.innerHTML = "";
+      const wrapper = document.createElement("div");
+      wrapper.style.position = "relative";
+      const svgContainer = document.createElement("div");
+      svgContainer.style.width = "100%";
+      svgContainer.style.display = "grid";
+      svgContainer.style.placeItems = "center";
+      svg.style.maxWidth = "100%";
+      svg.style.height = "auto";
+      svg.style.cursor = "zoom-in";
+      svgContainer.appendChild(svg);
+      wrapper.appendChild(svgContainer);
+      svg.addEventListener("click", () => showModal(svg));
+      els.protractorOutput.appendChild(wrapper);
+
+      // attach SVG string for download
+      lastSvgString = new XMLSerializer().serializeToString(svg);
+      els.protractorCard.classList.remove("hidden");
+    }
+
+    function showModal(svgNode) {
+      els.modalContent.innerHTML = "";
+      const clone = svgNode.cloneNode(true);
+      clone.removeAttribute("width");
+      clone.removeAttribute("height");
+      clone.style.width = "90vw";
+      clone.style.height = "90vh";
+      clone.style.maxWidth = "90vw";
+      clone.style.maxHeight = "90vh";
+      clone.style.cursor = "zoom-out";
+      els.modalContent.appendChild(clone);
+      els.modal.classList.add("show");
+      els.modal.setAttribute("aria-hidden", "false");
+    }
+
+    function hideModal() {
+      els.modalContent.innerHTML = "";
+      els.modal.classList.remove("show");
+      els.modal.setAttribute("aria-hidden", "true");
+    }
+
+    function downloadSvg() {
+      if (!lastSvgString) {
+        els.error.textContent = "Generate the protractor first, then download.";
+        return;
+      }
+      const blob = new Blob([lastSvgString], { type: "image/svg+xml" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "tonearm-protractor.svg";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+
+    init();
+  </script>
+</body>
+</html>
