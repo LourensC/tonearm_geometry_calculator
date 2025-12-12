@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Orange Bar Audio | Tools</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%23f59e0b'/%3E%3Ctext x='50%25' y='58%25' text-anchor='middle' font-size='34' font-family='Arial' font-weight='700' fill='%230d0d0d'%3EO%3C/text%3E%3C/svg%3E" />
+  <style>
+    :root {
+      --amber: #f59e0b;
+      --green: #22c55e;
+      --red: #ef4444;
+      --bg: #0d0d0d;
+      --surface: #141414;
+      --card: #181818;
+      --text: #f5f6f7;
+      --muted: #9aa4b0;
+      --stroke: rgba(255, 255, 255, 0.08);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: var(--bg);
+      color: var(--text);
+      font-family: "Space Grotesk", "Segoe UI", "Helvetica Neue", sans-serif;
+      display: grid;
+      grid-template-rows: auto 1fr;
+    }
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 18px 24px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--stroke);
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-weight: 800;
+      letter-spacing: 0.4px;
+      font-size: 18px;
+    }
+    .logo {
+      width: 36px;
+      height: 36px;
+      border-radius: 12px;
+      background: var(--amber);
+      display: grid;
+      place-items: center;
+      color: #0d0d0d;
+      font-weight: 900;
+      font-size: 14px;
+    }
+    main {
+      padding: 16px 16px 24px;
+      max-width: 1100px;
+      width: 100%;
+      margin: 0 auto;
+    }
+    .hero {
+      display: grid;
+      gap: 8px;
+      margin-bottom: 24px;
+    }
+    .hero h1 {
+      margin: 0;
+      font-size: 28px;
+      letter-spacing: 0.3px;
+    }
+    .hero p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 16px;
+      max-width: 720px;
+    }
+    .embed {
+      background: var(--card);
+      border: 1px solid var(--stroke);
+      border-radius: 14px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
+      padding: 8px;
+    }
+    iframe {
+      width: 100%;
+      height: calc(100vh - 180px);
+      min-height: 720px;
+      border: none;
+      border-radius: 10px;
+      background: #0d0d0d;
+    }
+    footer {
+      margin-top: 16px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+    @media (max-width: 700px) {
+      header {
+        padding: 14px 16px;
+      }
+      .hero h1 {
+        font-size: 24px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="brand">
+      <div class="logo">OBA</div>
+      <div>Orange Bar Audio</div>
+    </div>
+  </header>
+
+  <main>
+    <section class="embed">
+      <iframe src="calculator.html" title="Tonearm Geometry Calculator"></iframe>
+    </section>
+  </main>
+</body>
+</html>

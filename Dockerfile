@@ -1,7 +1,9 @@
-FROM python:3.11-slim
+FROM node:20-alpine
 
 WORKDIR /app
-COPY . /app
+
+# Install a simple static file server
+RUN npm install -g http-server
 
 EXPOSE 8000
-CMD ["python", "-m", "http.server", "8000", "--bind", "0.0.0.0"]
+CMD ["http-server", ".", "-p", "8000", "-a", "0.0.0.0"]

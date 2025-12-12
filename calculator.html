@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Tonearm Geometry Calculator</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%23f59e0b'/%3E%3Ctext x='50%25' y='58%25' text-anchor='middle' font-size='34' font-family='Arial' font-weight='700' fill='%230d0d0d'%3EO%3C/text%3E%3C/svg%3E" />
   <style>
     :root {
       --amber: #f59e0b;
@@ -246,12 +247,17 @@
       <h1>Tonearm Geometry Calculator</h1>
       <p class="lead">Enter your pivot-to-spindle distance and choose an alignment scheme to see offset angle and overhang.</p>
     </header>
+    <div id="cookieBanner" style="display:none; background:#222; color:#f5f5f5; padding:10px 14px; font-size:14px;">
+      This tool uses a cookie to remember tonearm presets and your banner dismissal. By continuing you accept this.
+      <button id="cookieDismiss" style="margin-left:12px; padding:6px 10px; border:none; border-radius:8px; background:#f59e0b; color:#0d0d0d; cursor:pointer;">OK</button>
+    </div>
     <main>
       <section class="card">
         <div class="row" style="grid-template-columns: 1fr;">
           <div>
             <label for="armName">Arm name</label>
-            <input id="armName" type="text" placeholder="e.g. Rega RB330" />
+            <input id="armName" type="text" placeholder="e.g. Rega RB330" list="armList" />
+            <datalist id="armList"></datalist>
           </div>
         </div>
 
@@ -325,8 +331,12 @@
     };
 
     let lastSvgString = "";
+    let lastSvgTitle = "tonearm-protractor";
     let defaultNulls = { inner: null, outer: null };
     let lastSchemeName = "";
+    let presets = {};
+    const PRESET_COOKIE = "tonearm-presets";
+    const DEFAULT_FILENAME = "tonearm-protractor";
 
     const els = {
       scheme: document.getElementById("scheme"),
@@ -346,6 +356,9 @@
       modalContent: document.getElementById("modalContent"),
       closeModal: document.getElementById("closeModal"),
       downloadBtn: document.getElementById("downloadBtn"),
+      cookieBanner: document.getElementById("cookieBanner"),
+      cookieDismiss: document.getElementById("cookieDismiss"),
+      armList: document.getElementById("armList"),
     };
 
     function init() {
@@ -362,6 +375,7 @@
       els.innerNull.addEventListener("input", render);
       els.outerNull.addEventListener("input", render);
       els.armName.addEventListener("input", render);
+      els.armName.addEventListener("change", onArmSelected);
       els.protractorBtn.addEventListener("click", drawProtractor);
       els.closeModal.addEventListener("click", hideModal);
       els.modal.addEventListener("click", (e) => {
@@ -369,6 +383,9 @@
       });
       els.downloadBtn.addEventListener("click", downloadSvg);
       els.protractorCard.classList.add("hidden");
+      initCookieBanner();
+      loadPresets();
+      populateArmList();
       els.pivot.value = 212;
       applySchemeDefaults();
     }
@@ -382,9 +399,33 @@
       render();
     }
 
+    function onArmSelected() {
+      const name = (els.armName.value || "").trim();
+      if (!name || !presets[name]) return;
+      const p = presets[name];
+      if (p.scheme && schemes[p.scheme]) {
+        els.scheme.value = p.scheme;
+        applySchemeDefaults();
+      }
+      if (Number.isFinite(p.pivot)) els.pivot.value = p.pivot;
+      if (Number.isFinite(p.inner)) els.innerNull.value = p.inner;
+      if (Number.isFinite(p.outer)) els.outerNull.value = p.outer;
+      render();
+    }
+
     function format(n, digits = 3) {
       if (!Number.isFinite(n)) return "--";
       return Number.parseFloat(n).toFixed(digits);
+    }
+
+    function sanitizeFilename(name) {
+      const cleaned = (name || "")
+        .trim()
+        .replace(/[\\/:*?"<>|]+/g, "_")
+        .replace(/\s+/g, "_")
+        .replace(/_+/g, "_")
+        .replace(/^_+|_+$/g, "");
+      return cleaned || DEFAULT_FILENAME;
     }
 
     function compute(pivotToSpindle, innerNull, outerNull) {
@@ -643,6 +684,58 @@
       };
       const arcSegment = (center, radius, startDeg, endDeg, stroke = "#111", width = 0.3) =>
         arcPath(center, radius, degToRad(startDeg), degToRad(endDeg), stroke, width);
+      const lineThroughBox = (point, angleDeg, stroke = "#000", width = 0.3) => {
+        const theta = degToRad(angleDeg);
+        const dx = Math.cos(theta);
+        const dy = Math.sin(theta);
+        const xmin = vbMinX;
+        const xmax = vbMinX + widthMm;
+        const ymin = vbMinY;
+        const ymax = vbMinY + heightMm;
+        const pts = [];
+        const addIfInside = (x, y) => {
+          const eps = 1e-6;
+          if (x >= xmin - eps && x <= xmax + eps && y >= ymin - eps && y <= ymax + eps) {
+            pts.push({ x, y });
+          }
+        };
+        if (Math.abs(dx) > 1e-9) {
+          const t1 = (xmin - point.x) / dx;
+          addIfInside(xmin, point.y + t1 * dy);
+          const t2 = (xmax - point.x) / dx;
+          addIfInside(xmax, point.y + t2 * dy);
+        }
+        if (Math.abs(dy) > 1e-9) {
+          const t3 = (ymin - point.y) / dy;
+          addIfInside(point.x + t3 * dx, ymin);
+          const t4 = (ymax - point.y) / dy;
+          addIfInside(point.x + t4 * dx, ymax);
+        }
+        // Deduplicate close points
+        const unique = [];
+        pts.forEach((p) => {
+          if (!unique.some((q) => Math.hypot(p.x - q.x, p.y - q.y) < 1e-3)) {
+            unique.push(p);
+          }
+        });
+        if (unique.length >= 2) {
+          // choose the two furthest apart
+          let maxD = -1;
+          let a = unique[0];
+          let b = unique[1];
+          for (let i = 0; i < unique.length; i++) {
+            for (let j = i + 1; j < unique.length; j++) {
+              const d = Math.hypot(unique[i].x - unique[j].x, unique[i].y - unique[j].y);
+              if (d > maxD) {
+                maxD = d;
+                a = unique[i];
+                b = unique[j];
+              }
+            }
+          }
+          add(line(a.x, a.y, b.x, b.y, stroke, width));
+        }
+      };
 
       // Spindle
       add(arcSegment(spindle, spindleRadius, 0, 360, "#000", 0.3));
@@ -664,6 +757,11 @@
       const startAngle = degToRad(135);
       const endAngle = degToRad(185);
       add(arcPath(pivot, geom.effectiveLength, startAngle, endAngle, "#000", 0.3));
+
+      // Line through pivot/spindle centerline at offset angle, to edges
+      const centerlinePoint = { x: pivot.x - geom.effectiveLength, y: 0 };
+      lineThroughBox(centerlinePoint, geom.offsetAngleDeg, "#000", 0.3);
+      lineThroughBox(pivot, geom.offsetAngleDeg + 90, "#000", 0.3);
 
       // Null markers + parallel tangent guides
       const drawTangentGuides = (pt) => {
@@ -793,7 +891,18 @@
 
       // attach SVG string for download
       lastSvgString = new XMLSerializer().serializeToString(svg);
+      lastSvgTitle = sanitizeFilename(titleText);
       els.protractorCard.classList.remove("hidden");
+      if (armNameText) {
+        presets[armNameText] = {
+          pivot: pivotValue,
+          inner,
+          outer,
+          scheme: useSchemeTag ? lastSchemeName : null,
+        };
+        savePresets();
+        populateArmList();
+      }
     }
 
     function showModal(svgNode) {
@@ -817,6 +926,55 @@
       els.modal.setAttribute("aria-hidden", "true");
     }
 
+    function initCookieBanner() {
+      const storageKey = "tonearm-cookie-dismissed";
+      const dismissed = localStorage.getItem(storageKey);
+      if (!dismissed) {
+        els.cookieBanner.style.display = "block";
+      }
+      els.cookieDismiss.addEventListener("click", () => {
+        localStorage.setItem(storageKey, "1");
+        els.cookieBanner.style.display = "none";
+      });
+    }
+
+    function getCookie(name) {
+      const value = `; ${document.cookie}`;
+      const parts = value.split(`; ${name}=`);
+      if (parts.length === 2) return parts.pop().split(";").shift();
+      return null;
+    }
+
+    function loadPresets() {
+      const raw = getCookie(PRESET_COOKIE);
+      if (!raw) return;
+      try {
+        presets = JSON.parse(decodeURIComponent(raw));
+      } catch {
+        presets = {};
+      }
+    }
+
+    function savePresets() {
+      try {
+        const encoded = encodeURIComponent(JSON.stringify(presets));
+        document.cookie = `${PRESET_COOKIE}=${encoded}; max-age=${60 * 60 * 24 * 365}; path=/`;
+      } catch {
+        // ignore
+      }
+    }
+
+    function populateArmList() {
+      els.armList.innerHTML = "";
+      Object.keys(presets)
+        .sort((a, b) => a.localeCompare(b))
+        .forEach((name) => {
+          const opt = document.createElement("option");
+          opt.value = name;
+          els.armList.appendChild(opt);
+        });
+    }
+
     function downloadSvg() {
       if (!lastSvgString) {
         els.error.textContent = "Generate the protractor first, then download.";
@@ -826,7 +984,8 @@
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = "tonearm-protractor.svg";
+      const safeTitle = sanitizeFilename(lastSvgTitle || DEFAULT_FILENAME);
+      a.download = `${safeTitle}.svg`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
